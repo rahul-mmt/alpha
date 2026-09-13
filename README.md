@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Feature Development Workflow — demo
 
-## Getting Started
+Next.js + shadcn/ui mock-up of the medical-device feature development workflow:
+**Phase → Clinical Mechanism of Action → Feature Identification**.
 
-First, run the development server:
+Two views share one data set (switch with the Canvas / Wizard toggle in the header):
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Canvas** (`/`) — whiteboard view of every mechanism and its features with live connectors.
+- **Wizard** (`/wizard`) — guided flow for one mechanism at a time: pick or create a
+  mechanism, then *Unmet Need → Clinical Theories → Features → Review & sign-off*.
+  Steps unlock as earlier ones validate; the URL (`?moa=…&step=…`) is shareable.
+
+```
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## What it shows
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- A phase marker (hexagon) feeding *n* **Clinical Mechanism of Action** cards.
+  Each card captures the *Unmet Need to improve* plus **one or more Clinical
+  Theories**, shown as tabs (T1, T2, …). Each theory carries its own list of
+  typed references (Journal / Guideline / Standard / Internal). Switching the
+  tab swaps the references column. Tabs show how many features derive from
+  that theory.
+- **A clinical theory can be a file.** Attach a source document (PDF, Word, text) to
+  any theory from the canvas card or the wizard. Small files are stored inline and
+  can be re-downloaded; text files can pre-fill the theory statement.
+- Each mechanism fans out to *n* **Feature Identification** cards. A feature is
+  derived from a *specific* theory; the first column shows the linked theory
+  (read-only) with a picker to re-link. *Design Theory* and *Potential Feature
+  Concept* are editable; *Feature Support Documents* is a typed list with a
+  document code (Protocol / Report / Plan / Review / Spec).
+- **Status changes require sign-off.** Clicking a different red / amber / green
+  dot opens a validation dialog: reviewer, role, rationale, and an attestation
+  checkbox. Confirming bumps the card revision and records the sign-off in the
+  card history. Approval is blocked while the card has an active conflict.
+- **Card history** (click the history count in the provenance strip) shows a
+  timeline of creation, edits, links, conflicts, and sign-offs with reviewer,
+  role, rationale and revision.
+- **Active conflicts** can be flagged / resolved from the card menu or the
+  provenance strip, each with a reason; conflicted cards get a red border and
+  roll up to a toolbar badge.
+- Toolbar: status legend doubles as a **filter**, **Compact** view collapses
+  cards to one line for an overview, **Export** downloads the current state as
+  JSON, **Reset demo** restores the seed content.
+- Connectors are drawn live between linked cards and re-route as cards grow.
+- Edits persist in `localStorage`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/app/page.tsx                         canvas route
+src/app/wizard/page.tsx                  wizard route
+src/lib/store.ts                         shared localStorage-backed store (both views, cross-tab sync)
+src/lib/actions.ts                       pure state transitions (sign-off, conflicts, add/remove/relink…)
+src/components/wizard/*                  wizard shell, step rail, chooser and the four steps
+src/components/workflow/theory-file      file attach / drop-zone / chip for theory source documents
+src/components/workflow/workflow-canvas  state, toolbar, layout, persistence
+src/components/workflow/workflow-card    shared card shell (title chip, grid, provenance, status)
+src/components/workflow/moa-card         Clinical Mechanism of Action card
+src/components/workflow/feature-card     Feature Identification card
+src/components/workflow/connectors       SVG bezier connectors between data-node-id elements
+src/components/workflow/sign-off-dialog  status-change validation / attestation dialog
+src/components/workflow/history-dialog   per-card audit timeline
+src/components/workflow/reason-dialog    flag / resolve conflict with a reason
+src/components/workflow/editable-list    typed, reorderable-ish list rows (references, documents)
+src/lib/types.ts · src/lib/seed.ts       data model and demo data
+```

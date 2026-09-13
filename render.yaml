@@ -1,0 +1,27 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: connect this repo in the Render dashboard (New → Blueprint) or use scripts/render-deploy.mjs.
+services:
+  - type: web
+    name: feature-workflow
+    runtime: node
+    plan: starter            # smallest plan that supports a persistent disk (needed so shared data survives restarts)
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATA_DIR
+        value: /var/data
+      - key: APP_USER
+        value: mosaic
+      - key: APP_PASSWORD
+        sync: false          # set in the dashboard / via API — never committed
+      - key: AUTH_SECRET
+        generateValue: true
+    disk:
+      name: workflow-data
+      mountPath: /var/data
+      sizeGB: 1
