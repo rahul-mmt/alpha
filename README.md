@@ -12,8 +12,11 @@ Two views share one data set (switch with the Canvas / Wizard toggle in the head
 
 ```
 npm install
-npm run dev        # http://localhost:3000
+cp .env.example .env.local   # then edit APP_USER / APP_PASSWORD / AUTH_SECRET
+npm run dev                  # http://localhost:3000 → redirects to /login
 ```
+
+Local defaults when `.env.local` is absent: user `mosaic`, password `mosaic-demo`.
 
 ## What it shows
 
@@ -47,12 +50,56 @@ npm run dev        # http://localhost:3000
 - Connectors are drawn live between linked cards and re-route as cards grow.
 - Edits persist in `localStorage`.
 
+## Comments (Figma-style)
+
+Press **C** or click **Comment** in the header, then click anywhere to drop a pin.
+Pins attach to the nearest card / block (they follow it as the layout changes) or to
+a fixed spot on the page. Each pin opens a thread with replies, resolve / reopen and
+delete. The dropdown next to the Comment button lists the threads on the current
+screen and toggles resolved ones. Comments are per screen — the canvas, or a specific
+wizard mechanism + step. Commenter name defaults to the login user and can be changed
+inline ("Replying as …") since the login is shared.
+
+## Sharing and persistence
+
+The server is the source of truth so everyone sees the same data:
+
+- `GET/PUT /api/state` — the whole workflow state; the client pushes changes
+  (debounced) and polls every 8 s. Last write wins.
+- `GET/POST /api/comments` — per-thread upsert / delete.
+- Both are JSON documents under `DATA_DIR` (`./data` locally, the mounted disk on Render).
+- A cloud icon in the header shows sync status; local storage is kept as a fallback.
+
+## Login
+
+A single shared credential (`APP_USER` / `APP_PASSWORD`) signs a 30-day HttpOnly
+cookie with `AUTH_SECRET`. `src/proxy.ts` redirects every page to `/login` and
+returns 401 for API routes when the cookie is missing or invalid.
+
+## Deploying to Render
+
+`render.yaml` is a Blueprint for a Node web service on the **Starter** plan with a
+1 GB disk at `/var/data` (needed so shared data survives restarts; the free plan has
+no disk). Either connect the repo in the dashboard (New → Blueprint) and set
+`APP_PASSWORD`, or run:
+
+```
+RENDER_API_KEY=… APP_PASSWORD=… node scripts/render-deploy.mjs --repo https://github.com/<owner>/<repo>
+```
+
 ## Layout
 
 ```
 src/app/page.tsx                         canvas route
 src/app/wizard/page.tsx                  wizard route
-src/lib/store.ts                         shared localStorage-backed store (both views, cross-tab sync)
+src/lib/store.ts                         shared store: server-synced, localStorage fallback, cross-tab
+src/lib/comments.ts · comments-store.ts  comment thread types + server-synced store + comment UI mode
+src/components/comments/*                comment layer (pins, composer, thread panel) and toolbar
+src/lib/server/*                         file-store (JSON docs) and auth (signed cookie)
+src/app/api/*                            state, comments, login/logout/me, health
+src/proxy.ts                             auth gate for pages and API
+src/app/login/page.tsx                   sign-in page
+render.yaml · scripts/render-deploy.mjs  Render blueprint and API deploy script
 src/lib/actions.ts                       pure state transitions (sign-off, conflicts, add/remove/relink…)
 src/components/wizard/*                  wizard shell, step rail, chooser and the four steps
 src/components/workflow/theory-file      file attach / drop-zone / chip for theory source documents
