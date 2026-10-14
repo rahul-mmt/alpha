@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks } from "lucide-react";
+import { GalleryVerticalEnd, LayoutDashboard, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Canvas", icon: LayoutDashboard },
   { href: "/wizard", label: "Wizard", icon: ListChecks },
+  { href: "/carousel", label: "Carousel UI", icon: GalleryVerticalEnd },
 ];
 
 export function SiteNav() {
