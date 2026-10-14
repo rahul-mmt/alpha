@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GalleryVerticalEnd, LayoutDashboard, ListChecks, ListOrdered } from "lucide-react";
+import { GalleryVerticalEnd, LayoutDashboard, ListChecks, ListOrdered, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/wizard", label: "Wizard", icon: ListChecks },
   { href: "/carousel", label: "Carousel UI", icon: GalleryVerticalEnd },
   { href: "/carousel-wizard", label: "Carousel + Wizard", icon: ListOrdered },
+  { href: "/architecture", label: "Architecture", icon: Network },
 ];
 
 export function SiteNav() {
