@@ -24,7 +24,7 @@ export interface Phase {
   title: string;
   note?: string;
   /** Live board, or placeholder columns laid out left → right. */
-  board: { kind: "feature-development" } | { kind: "placeholder"; columns: PlaceholderColumn[] };
+  board: { kind: "feature-development" } | { kind: "user-needs" } | { kind: "placeholder"; columns: PlaceholderColumn[] };
 }
 
 export const PHASES: Phase[] = [
@@ -74,10 +74,8 @@ export const PHASES: Phase[] = [
   {
     id: "user-needs",
     title: "User Needs",
-    board: {
-      kind: "placeholder",
-      columns: [{ cards: [{ title: "User Needs Register", tone: "violet", size: "lg" }] }],
-    },
+    note: "Capture needs as cards; tag which ones Improve vs. Maintain",
+    board: { kind: "user-needs" },
   },
   {
     id: "feature-development",

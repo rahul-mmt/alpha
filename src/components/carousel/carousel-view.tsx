@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minimize2, Plus } from "lucide-react";
+import { Maximize2, Minimize2, Plus, RotateCcw } from "lucide-react";
 import * as A from "@/lib/actions";
 import { useWorkflowStore } from "@/lib/store";
+import { newUserNeed, useUserNeeds } from "@/lib/user-needs";
 import type { SignOff, Status } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import { DEFAULT_PHASE_ID, PHASES, phaseNodeId } from "./phases";
 import { Rolodex } from "./rolodex";
 import { FeatureDevelopmentBoard } from "./feature-development-board";
 import { PlaceholderBoard } from "./placeholder-board";
+import { UserNeedsBoard } from "./user-needs-board";
 
 function readPhaseFromUrl(): number {
   if (typeof window === "undefined") return -1;
@@ -35,6 +37,7 @@ function readPhaseFromUrl(): number {
  */
 export function CarouselView() {
   const [state, setState] = useWorkflowStore();
+  const [needs, setNeeds, resetNeeds] = useUserNeeds();
   const [selected, setSelected] = useState(() => {
     const i = readPhaseFromUrl();
     return i === -1 ? PHASES.findIndex((p) => p.id === DEFAULT_PHASE_ID) : i;
@@ -50,6 +53,7 @@ export function CarouselView() {
 
   const phase = PHASES[selected];
   const isLive = phase.board.kind === "feature-development";
+  const isNeeds = phase.board.kind === "user-needs";
   const pageKey = `carousel:${phase.id}`;
 
   // Shareable URL: /carousel?phase=…
@@ -70,6 +74,13 @@ export function CarouselView() {
   };
 
   const bump = () => setScrollTick((t) => t + 1);
+
+  const [focusNeed, setFocusNeed] = useState<string | null>(null);
+  const addNeed = () => {
+    const c = newUserNeed();
+    setNeeds((cs) => [...cs, c]);
+    setFocusNeed(c.id);
+  };
 
   // Turning the drum scrolls the board back to the top of the new phase.
   const select = (i: number) => {
@@ -139,6 +150,8 @@ export function CarouselView() {
                 </Badge>
               )}
             </>
+          ) : isNeeds ? (
+            <Badge variant="outline">{needs.length} user needs</Badge>
           ) : (
             <Badge variant="outline" className="text-neutral-400">
               placeholder
@@ -156,6 +169,19 @@ export function CarouselView() {
               <Button size="sm" className="bg-[#00224B] hover:bg-[#00224B]/90" onClick={() => setState((s) => A.addMechanism(s).state)}>
                 <Plus className="size-3.5" />
                 Add mechanism
+              </Button>
+              <Separator orientation="vertical" className="h-8!" />
+            </>
+          )}
+          {isNeeds && (
+            <>
+              <Button variant="outline" size="sm" onClick={resetNeeds} title="Reset user needs to seed content">
+                <RotateCcw className="size-3.5" />
+                <span className="hidden 2xl:inline">Reset needs</span>
+              </Button>
+              <Button size="sm" className="bg-[#00224B] hover:bg-[#00224B]/90" onClick={addNeed}>
+                <Plus className="size-3.5" />
+                Add user need
               </Button>
               <Separator orientation="vertical" className="h-8!" />
             </>
@@ -215,6 +241,10 @@ export function CarouselView() {
                     Next stage — not part of this demo.
                   </div>
                 </div>
+              </div>
+            ) : isNeeds ? (
+              <div className="max-w-6xl">
+                <UserNeedsBoard cards={needs} onChange={setNeeds} autoFocusId={focusNeed} />
               </div>
             ) : (
               <PlaceholderBoard phase={phase} />

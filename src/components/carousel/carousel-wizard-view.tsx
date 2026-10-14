@@ -27,6 +27,8 @@ import { StepReview } from "@/components/wizard/step-review";
 import { DEFAULT_PHASE_ID, PHASES, type Phase } from "./phases";
 import { Rolodex } from "./rolodex";
 import { PlaceholderBoard } from "./placeholder-board";
+import { UserNeedsBoard } from "./user-needs-board";
+import { useUserNeeds } from "@/lib/user-needs";
 
 /**
  * The wizard's four steps grouped into the two stages the canvas shows side
@@ -57,6 +59,7 @@ function readUrl() {
  */
 export function CarouselWizardView() {
   const [state, setState] = useWorkflowStore();
+  const [needs, setNeeds] = useUserNeeds();
   const [nav, setNav] = useState(() => {
     const u = readUrl();
     return {
@@ -74,6 +77,7 @@ export function CarouselWizardView() {
 
   const phase = PHASES[nav.phase];
   const isLive = phase.board.kind === "feature-development";
+  const isNeeds = phase.board.kind === "user-needs";
   const moa = isLive && nav.moa ? state.mechanisms.find((m) => m.id === nav.moa) : undefined;
   const features = useMemo(() => (moa ? state.features.filter((f) => f.moaId === moa.id) : []), [state.features, moa]);
 
@@ -174,6 +178,8 @@ export function CarouselWizardView() {
             </>
           ) : isLive ? (
             <Badge variant="outline">{state.mechanisms.length} mechanisms</Badge>
+          ) : isNeeds ? (
+            <Badge variant="outline">{needs.length} user needs</Badge>
           ) : (
             <Badge variant="outline" className="text-neutral-400">
               placeholder
@@ -261,6 +267,19 @@ export function CarouselWizardView() {
                     />
                   </>
                 )}
+              </div>
+            ) : isNeeds ? (
+              <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-8">
+                <PhaseHeading phase={phase} index={nav.phase} />
+                <div className="rounded-xl border border-neutral-200 bg-[#fbfbfc] p-6 shadow-sm">
+                  <h3 className="text-xl font-semibold tracking-tight text-[#00224B]">What do users need that today&apos;s device does not deliver?</h3>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    One card per need. Tag it Improve or Maintain; only Improve needs carry into Feature Development.
+                  </p>
+                  <div className="mt-6">
+                    <UserNeedsBoard cards={needs} onChange={setNeeds} />
+                  </div>
+                </div>
               </div>
             ) : (
               <PlaceholderWizard phase={phase} index={nav.phase} col={nav.col} onCol={(c) => { setNav((n) => ({ ...n, col: c })); scrollTop(); }} />
