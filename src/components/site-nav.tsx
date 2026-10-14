@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GalleryVerticalEnd, LayoutDashboard, ListChecks } from "lucide-react";
+import { GalleryVerticalEnd, LayoutDashboard, ListChecks, ListOrdered } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Canvas", icon: LayoutDashboard },
   { href: "/wizard", label: "Wizard", icon: ListChecks },
   { href: "/carousel", label: "Carousel UI", icon: GalleryVerticalEnd },
+  { href: "/carousel-wizard", label: "Carousel + Wizard", icon: ListOrdered },
 ];
 
 export function SiteNav() {
@@ -16,7 +17,7 @@ export function SiteNav() {
   return (
     <nav className="flex items-center rounded-md border border-neutral-200 bg-neutral-50 p-0.5" aria-label="View">
       {LINKS.map((l) => {
-        const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
+        const active = l.href === "/" ? path === "/" : path === l.href || path.startsWith(l.href + "/");
         return (
           <Link
             key={l.href}
