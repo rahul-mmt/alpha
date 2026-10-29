@@ -23,21 +23,24 @@ export interface UserNeedCard {
   createdAt: string;
 }
 
-const card = (title: string, note: string, kind: NeedKind): UserNeedCard => ({ id: makeId("un"), title, note, kind, createdAt: nowISO() });
+const card = (title: string, note: string, kind: NeedKind, id = makeId("un")): UserNeedCard => ({ id, title, note, kind, createdAt: nowISO() });
 
+/** Seed ids are fixed so the seed mechanisms can point back at them (userNeedId). */
 export function seedUserNeeds(): UserNeedCard[] {
   return [
     card(
       "Reduce catheter-related bloodstream infections in long-dwell peripheral IVs",
       "Nursing interviews (n=12): infections cluster after 72 h dwell. Current practice is routine replacement, which patients dislike.",
-      "improve"
+      "improve",
+      "un-seed-1"
     ),
     card(
       "Improve first-attempt cannulation in difficult venous access",
       "DIVA patients average 2.4 sticks. Clinicians want to see vessel depth before puncture.",
-      "improve"
+      "improve",
+      "un-seed-2"
     ),
-    card("Keep the insertion workflow under 90 seconds", "Any added step must not slow the existing kit. Maintain, not improve.", "maintain"),
+    card("Keep the insertion workflow under 90 seconds", "Any added step must not slow the existing kit. Maintain, not improve.", "maintain", "un-seed-3"),
   ];
 }
 

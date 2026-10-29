@@ -10,6 +10,7 @@ export const SEED: WorkflowState = {
   mechanisms: [
     {
       id: "moa-1",
+      userNeedId: "un-seed-1",
       unmetNeed:
         "Reduce catheter-related bloodstream infections (CRBSI) in peripheral IV placements dwelling > 72 h.",
       improvementConfirmed: true,
@@ -78,6 +79,7 @@ export const SEED: WorkflowState = {
     },
     {
       id: "moa-2",
+      userNeedId: "un-seed-2",
       unmetNeed:
         "Improve first-attempt cannulation success in patients with difficult venous access (DIVA).",
       improvementConfirmed: true,

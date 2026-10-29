@@ -24,11 +24,15 @@ export function Rolodex({
   phases,
   selected,
   onSelect,
+  compact = false,
 }: {
   phases: Phase[];
   selected: number;
   onSelect: (index: number) => void;
+  /** Smaller drum, used when a phase is open as a guided level. */
+  compact?: boolean;
 }) {
+  const step = compact ? 88 : STEP_PX;
   const drumRef = useRef<HTMLDivElement>(null);
   const wheelAcc = useRef(0);
   const wheelLockUntil = useRef(0);
@@ -39,7 +43,7 @@ export function Rolodex({
   }, [selected]);
 
   const clamp = (i: number) => Math.max(0, Math.min(phases.length - 1, i));
-  const step = (delta: number) => onSelect(clamp(selectedRef.current + delta));
+  const turn = (delta: number) => onSelect(clamp(selectedRef.current + delta));
 
   // React registers wheel as passive, so preventDefault (keeping the page from
   // scrolling while the drum turns) needs a native listener.
@@ -52,7 +56,7 @@ export function Rolodex({
       if (now < wheelLockUntil.current) return;
       wheelAcc.current += e.deltaY;
       if (Math.abs(wheelAcc.current) >= WHEEL_NOTCH) {
-        step(wheelAcc.current > 0 ? 1 : -1);
+        turn(wheelAcc.current > 0 ? 1 : -1);
         wheelAcc.current = 0;
         wheelLockUntil.current = now + WHEEL_LOCK_MS;
       }
@@ -65,10 +69,10 @@ export function Rolodex({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown" || e.key === "PageDown") {
       e.preventDefault();
-      step(1);
+      turn(1);
     } else if (e.key === "ArrowUp" || e.key === "PageUp") {
       e.preventDefault();
-      step(-1);
+      turn(-1);
     } else if (e.key === "Home") {
       e.preventDefault();
       onSelect(0);
@@ -80,7 +84,7 @@ export function Rolodex({
 
   return (
     <div className="flex flex-col items-center gap-3 select-none">
-      <Button variant="ghost" size="sm" onClick={() => step(-1)} disabled={selected === 0} aria-label="Previous phase" className="text-neutral-500">
+      <Button variant="ghost" size="sm" onClick={() => turn(-1)} disabled={selected === 0} aria-label="Previous phase" className="text-neutral-500">
         <ChevronUp className="size-4" />
       </Button>
 
@@ -91,7 +95,7 @@ export function Rolodex({
         aria-activedescendant={`rolodex-${phases[selected]?.id}`}
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="relative h-[560px] w-[320px] cursor-ns-resize outline-none focus-visible:ring-2 focus-visible:ring-[#08A9AD]/50 rounded-xl"
+        className={cn("relative cursor-ns-resize rounded-xl outline-none transition-[height,width] duration-300 focus-visible:ring-2 focus-visible:ring-[#08A9AD]/50", compact ? "h-[380px] w-[220px]" : "h-[560px] w-[320px]")}
         style={{ perspective: "1100px", perspectiveOrigin: "50% 50%" }}
       >
         {/* Axis / spine of the drum */}
@@ -104,7 +108,7 @@ export function Rolodex({
           const active = d === 0;
           const opacity = hidden ? 0 : active ? 1 : Math.max(0.16, 1 - abs * 0.28);
           const scale = active ? 1 : Math.max(0.7, 1 - abs * 0.09);
-          const transform = `translate(-50%, -50%) translateY(${d * STEP_PX}px) translateZ(${-abs * 110}px) rotateX(${-d * 28}deg) scale(${scale})`;
+          const transform = `translate(-50%, -50%) translateY(${d * step}px) translateZ(${-abs * (compact ? 70 : 110)}px) rotateX(${-d * 28}deg) scale(${scale})`;
           return (
             <button
               key={p.id}
@@ -116,18 +120,19 @@ export function Rolodex({
               onClick={() => onSelect(i)}
               disabled={hidden}
               className={cn(
-                "absolute left-1/2 top-1/2 block h-[172px] w-[260px] transition-[transform,opacity] duration-500 ease-[cubic-bezier(.22,1,.36,1)] will-change-transform",
+                "absolute left-1/2 top-1/2 block transition-[transform,opacity,height,width] duration-500 ease-[cubic-bezier(.22,1,.36,1)] will-change-transform",
+                compact ? "h-[118px] w-[180px]" : "h-[172px] w-[260px]",
                 active ? "z-20 cursor-default" : "z-10 cursor-pointer hover:brightness-95"
               )}
               style={{ transform, opacity, pointerEvents: hidden ? "none" : undefined }}
             >
-              <PhaseTile phase={p} active={active} />
+              <PhaseTile phase={p} active={active} compact={compact} />
             </button>
           );
         })}
       </div>
 
-      <Button variant="ghost" size="sm" onClick={() => step(1)} disabled={selected === phases.length - 1} aria-label="Next phase" className="text-neutral-500">
+      <Button variant="ghost" size="sm" onClick={() => turn(1)} disabled={selected === phases.length - 1} aria-label="Next phase" className="text-neutral-500">
         <ChevronDown className="size-4" />
       </Button>
 
@@ -142,7 +147,7 @@ export function Rolodex({
   );
 }
 
-function PhaseTile({ phase, active }: { phase: Phase; active: boolean }) {
+function PhaseTile({ phase, active, compact }: { phase: Phase; active: boolean; compact: boolean }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center">
       <svg viewBox="0 0 330 220" className={cn("absolute inset-0 h-full w-full", active ? "drop-shadow-md" : "drop-shadow-sm")} aria-hidden>
@@ -154,7 +159,8 @@ function PhaseTile({ phase, active }: { phase: Phase; active: boolean }) {
       </svg>
       <div
         className={cn(
-          "relative px-9 text-center text-[21px] font-medium leading-tight tracking-tight transition-colors duration-300",
+          "relative text-center font-medium leading-tight tracking-tight transition-colors duration-300",
+          compact ? "px-6 text-[14px]" : "px-9 text-[21px]",
           active ? "text-[#00224B]" : "text-neutral-700"
         )}
       >

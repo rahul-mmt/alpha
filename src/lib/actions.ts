@@ -36,6 +36,7 @@ export function cardTitle(s: WorkflowState, c: Card) {
 
 export function patchCard(s: WorkflowState, id: string, fn: <T extends Card>(c: T) => T): WorkflowState {
   return {
+    ...s,
     mechanisms: s.mechanisms.map((m) => (m.id === id ? fn(m) : m)),
     features: s.features.map((f) => (f.id === id ? fn(f) : f)),
   };
@@ -164,6 +165,7 @@ export function duplicateMechanism(s: WorkflowState, id: string): WorkflowState 
 
 export function deleteMechanism(s: WorkflowState, id: string): WorkflowState {
   return {
+    ...s,
     mechanisms: s.mechanisms.filter((m) => m.id !== id),
     features: s.features.filter((f) => f.moaId !== id),
   };
@@ -176,6 +178,7 @@ export function removeTheory(s: WorkflowState, moaId: string, theoryId: string):
   const removed = moa.theories.find((t) => t.id === theoryId);
   const remaining = moa.theories.filter((t) => t.id !== theoryId);
   return {
+    ...s,
     mechanisms: s.mechanisms.map((m) =>
       m.id === moaId
         ? { ...m, theories: remaining, history: [...m.history, event("edited", `Clinical theory '${removed?.title}' removed`)] }

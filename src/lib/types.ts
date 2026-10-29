@@ -22,13 +22,14 @@ export const REFERENCE_KINDS: Record<ReferenceKind, { label: string; className: 
   internal: { label: "Internal", className: "bg-neutral-200 text-neutral-700" },
 };
 
-export type DocKind = "protocol" | "report" | "plan" | "review" | "spec";
+export type DocKind = "protocol" | "report" | "plan" | "review" | "spec" | "drawing";
 export const DOC_KINDS: Record<DocKind, { label: string; className: string }> = {
   protocol: { label: "Protocol", className: "bg-sky-100 text-sky-800" },
   report: { label: "Report", className: "bg-emerald-100 text-emerald-800" },
   plan: { label: "Plan", className: "bg-violet-100 text-violet-800" },
   review: { label: "Review", className: "bg-amber-100 text-amber-800" },
   spec: { label: "Spec", className: "bg-neutral-200 text-neutral-700" },
+  drawing: { label: "Drawing / CAD", className: "bg-rose-100 text-rose-800" },
 };
 
 export interface Reference {
@@ -96,6 +97,8 @@ export interface Provenance {
 
 export interface MechanismOfAction {
   id: string;
+  /** The User Need card (previous level) this mechanism was transferred from, when known. */
+  userNeedId?: string;
   /** Unmet Need (UN) this mechanism is meant to *improve* — never merely maintain. */
   unmetNeed: string;
   /** Wizard gate: the author confirmed this UN is an improvement, not maintenance. */
@@ -106,9 +109,18 @@ export interface MechanismOfAction {
   history: HistoryEvent[];
 }
 
+/** Feature Concept Effectiveness: prototype evaluation of a feature concept. */
+export interface Effectiveness {
+  evaluation: string;
+  documents: SupportDocument[];
+  /** undefined = not yet determined. */
+  prototypeAcceptable?: boolean;
+}
+
 export interface Feature {
   id: string;
   moaId: string;
+  effectiveness?: Effectiveness;
   /** Which of the parent's clinical theories this feature is derived from. */
   theoryId: string;
   designTheory: string;
@@ -119,9 +131,53 @@ export interface Feature {
   history: HistoryEvent[];
 }
 
+/* ---------- level review lifecycle (author → stakeholders → finalized) ---------- */
+
+export type ReviewState = "drafting" | "review" | "reconcile" | "finalized";
+
+/** An electronic signature: who signed, as which role, with which login, when. */
+export interface Signature {
+  by: string;
+  role: string;
+  userId: string;
+  at: string;
+  round: number;
+}
+
+export interface ReviewFeedback {
+  id: string;
+  round: number;
+  by: string;
+  role: string;
+  kind: "edit" | "comment";
+  text: string;
+  at: string;
+  /** Set by the author during reconciliation. */
+  reconciled?: boolean;
+  resolution?: string;
+}
+
+export interface CardReview {
+  cardId: string;
+  state: ReviewState;
+  /** Review round (1-based) once the author has approved the draft. */
+  round: number;
+  authorApprovals: Signature[];
+  /** Approvals for the current round, keyed by stakeholder name. */
+  stakeholderApprovals: Record<string, Signature>;
+  feedback: ReviewFeedback[];
+  notifications: { round: number; at: string; to: string[] }[];
+  finalizedAt?: string;
+  finalRevision?: string;
+}
+
 export interface WorkflowState {
   mechanisms: MechanismOfAction[];
   features: Feature[];
+  /** Level review records keyed by card id (absent = drafting). */
+  reviews?: Record<string, CardReview>;
+  /** Market Design Map: which viable feature concepts are selected for the design, keyed by feature id. */
+  marketMap?: Record<string, { selected?: boolean; justification: string }>;
 }
 
 export type Card = MechanismOfAction | Feature;
