@@ -48,12 +48,18 @@ export function LevelWorkflow({
   needs,
   activeId,
   onActivate,
+  onStartBlank,
+  onLoadExample,
+  onGoToNeeds,
 }: {
   state: WorkflowState;
   setState: SetState;
   needs: UserNeedCard[];
   activeId: string | null;
   onActivate: (id: string) => void;
+  onStartBlank: () => void;
+  onLoadExample: () => void;
+  onGoToNeeds: () => void;
 }) {
   const personaName = usePersona();
   const persona = personaOf(personaName);
@@ -273,10 +279,34 @@ export function LevelWorkflow({
               <DropdownMenuItem onClick={() => clearTraining()}>Reset training profiles</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setState((s) => ({ ...s, reviews: {}, marketMap: {} }))}>Reset all card reviews</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm("Start blank? This clears every user need, card, review and training record so you can enter your own example.")) onStartBlank();
+                }}
+              >
+                Start blank
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm("Load the example content? This replaces everything currently in the workflow.")) onLoadExample();
+                }}
+              >
+                Load example content
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
+
+      {state.mechanisms.length === 0 && (
+        <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+          No Clinical Mechanism of Action cards yet. Each <span className="font-semibold">Improve</span> need in User Needs becomes one here.{" "}
+          <button type="button" onClick={onGoToNeeds} className="font-semibold text-[#00224B] underline underline-offset-2">
+            Go to User Needs
+          </button>
+        </div>
+      )}
 
       {/* ribbon */}
       <CardRibbon cards={cards} activeId={active?.id ?? ""} reviews={reviews} onSelect={onActivate} />

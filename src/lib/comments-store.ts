@@ -31,9 +31,30 @@ function cache() {
   }
 }
 
+function readCache(): CommentThread[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (raw) return JSON.parse(raw) as CommentThread[];
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
 async function pull() {
   try {
     const env = await api<{ data: CommentThread[]; updatedAt: string | null }>("/api/comments", { cache: "no-store" });
+    if (!loaded && env.updatedAt === null) {
+      // Fresh server (e.g. Render restarted and lost its files): restore from this browser's copy instead of wiping it.
+      const local = readCache();
+      if (local.length) {
+        threads = local;
+        loaded = true;
+        emit();
+        for (const t of local) await send({ op: "upsert", thread: t });
+        return;
+      }
+    }
     if (env.updatedAt !== updatedAt || !loaded) {
       updatedAt = env.updatedAt;
       threads = env.data ?? [];
@@ -43,12 +64,7 @@ async function pull() {
     }
   } catch {
     if (!loaded) {
-      try {
-        const raw = localStorage.getItem(LOCAL_KEY);
-        if (raw) threads = JSON.parse(raw) as CommentThread[];
-      } catch {
-        /* ignore */
-      }
+      threads = readCache();
       loaded = true;
       emit();
     }

@@ -255,3 +255,6 @@ export const SEED: WorkflowState = {
     },
   ],
 };
+
+/** No content at all: the starting point for working through your own example. */
+export const EMPTY: WorkflowState = { mechanisms: [], features: [], reviews: {}, marketMap: {} };

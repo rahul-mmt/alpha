@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useWorkflowStore } from "@/lib/store";
-import { useUserNeeds } from "@/lib/user-needs";
+import { AUTHOR, clearTraining, setPersona } from "@/lib/level";
+import { EMPTY, SEED } from "@/lib/seed";
+import { seedUserNeeds, useUserNeeds } from "@/lib/user-needs";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +66,14 @@ export function CarouselWizardView() {
     setNav((n) => ({ ...n, phase: i, col: 0 }));
     scrollTop();
   };
+  const startOver = (blank: boolean) => {
+    setState(blank ? EMPTY : SEED);
+    setNeeds(blank ? [] : seedUserNeeds());
+    if (blank) clearTraining();
+    setPersona(AUTHOR.name);
+    setNav((n) => ({ ...n, card: null }));
+  };
+  const goToNeeds = () => selectPhase(PHASES.findIndex((p) => p.board.kind === "user-needs"));
   const activateCard = useCallback((id: string) => {
     setNav((n) => (n.card === id ? n : { ...n, card: id }));
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -117,7 +127,16 @@ export function CarouselWizardView() {
 
           <section key={phase.id} className="relative z-10 min-w-0 flex-1 animate-in fade-in slide-in-from-left-6 duration-300" aria-label={`${phase.title} wizard`}>
             {isLive ? (
-              <LevelWorkflow state={state} setState={setState} needs={needs} activeId={nav.card} onActivate={activateCard} />
+              <LevelWorkflow
+                state={state}
+                setState={setState}
+                needs={needs}
+                activeId={nav.card}
+                onActivate={activateCard}
+                onStartBlank={() => startOver(true)}
+                onLoadExample={() => startOver(false)}
+                onGoToNeeds={goToNeeds}
+              />
             ) : isNeeds ? (
               <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-8">
                 <PhaseHeading phase={phase} index={nav.phase} />
