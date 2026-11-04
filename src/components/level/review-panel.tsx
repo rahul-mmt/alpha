@@ -78,7 +78,7 @@ export function ReviewPanel({
             Finalized {r.finalRevision && `at ${r.finalRevision}`} · {r.finalizedAt && when(r.finalizedAt)}
           </div>
           <div className="mt-1 text-xs">
-            Review round {r.round} closed with no edits or comments. Approved by {stakeholders.map((s) => s.name).join(", ")}. All fields are closed; changes go through the change process.
+            Round {r.round} · approved by {stakeholders.map((s) => s.name).join(", ")}
           </div>
         </div>
       )}
@@ -86,9 +86,6 @@ export function ReviewPanel({
       {/* drafting */}
       {r.state === "drafting" && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-neutral-600">
-            {isAuthor ? "When the draft is complete, approve it with your credentials. Your approval and date are stored and the card is routed to the stakeholders designated at project set-up." : "The author is drafting this card. Stakeholders are notified once the author approves the draft."}
-          </p>
           {isAuthor && (
             <Button
               className="ml-auto bg-[#00224B] hover:bg-[#00224B]/90"
@@ -173,8 +170,7 @@ export function ReviewPanel({
           )}
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm text-neutral-600">
-              {approvedCount} of {stakeholders.length} approved.{" "}
-              {roundFb.length > 0 ? "Feedback is present, so once everyone approves the card returns to the author to reconcile." : "No feedback so far; if everyone approves, the card is finalized."}
+              {approvedCount} of {stakeholders.length} approved
             </p>
             {isStakeholder && !myApproval && (
               <Button className="ml-auto bg-[#00224B] hover:bg-[#00224B]/90" onClick={onStakeholderApprove}>
@@ -183,7 +179,7 @@ export function ReviewPanel({
               </Button>
             )}
             {isStakeholder && myApproval && <span className="ml-auto text-xs text-green-800">You approved this round {when(myApproval.at)}.</span>}
-            {isAuthor && <span className="ml-auto text-xs text-neutral-500">Waiting for stakeholders. Switch “Acting as” in the header to review as one of them.</span>}
+            {isAuthor && <span className="ml-auto text-xs text-neutral-500">Waiting for stakeholders</span>}
           </div>
         </div>
       )}
@@ -191,11 +187,7 @@ export function ReviewPanel({
       {/* reconcile: author re-approval */}
       {r.state === "reconcile" && (
         <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-3">
-          <p className="text-sm text-neutral-600">
-            {isAuthor
-              ? "Review each item, update the fields above as needed, and record how it was reconciled. Then approve the reconciled draft to route round " + (r.round + 1) + "."
-              : "Returned to the author to reconcile the feedback from round " + r.round + "."}
-          </p>
+          {!isAuthor && <p className="text-sm text-neutral-600">With author · reconciling round {r.round}</p>}
           {isAuthor && (
             <Button className="ml-auto bg-[#00224B] hover:bg-[#00224B]/90" disabled={!allReconciled(r)} title={!allReconciled(r) ? "Reconcile every item first" : undefined} onClick={onAuthorApprove}>
               <Send className="size-4" />
@@ -214,13 +206,12 @@ function FeedbackComposer({ onAdd }: { onAdd: (kind: "edit" | "comment", text: s
   return (
     <div className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
       <div className="flex items-center gap-2 text-xs">
-        <span className="font-semibold text-neutral-700">Add to this card before approving:</span>
+        <span className="font-semibold text-neutral-700">Feedback</span>
         {(["comment", "edit"] as const).map((k) => (
           <button key={k} type="button" onClick={() => setKind(k)} className={cn("rounded border px-2 py-0.5 font-medium", kind === k ? "border-[#00224B] bg-white text-[#00224B]" : "border-neutral-200 text-neutral-500")}>
             {k === "edit" ? "Suggested edit" : "Comment"}
           </button>
         ))}
-        <span className="ml-auto text-[10px] text-neutral-400">Any item sends the card back to the author after this round.</span>
       </div>
       <div className="flex gap-2">
         <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={kind === "edit" ? "What should change, and to what" : "Question or observation"} className="text-sm" />

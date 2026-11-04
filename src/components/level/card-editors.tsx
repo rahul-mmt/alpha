@@ -1,8 +1,20 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Check, Link2, Paperclip, Plus, Trash2, X } from "lucide-react";
-import { DOC_KINDS, makeId, type ClinicalTheory, type DocKind, type Effectiveness, type Feature, type MechanismOfAction, type SupportDocument } from "@/lib/types";
+import {
+  DOC_KINDS,
+  REFERENCE_KINDS,
+  blankTheory,
+  makeId,
+  type ClinicalTheory,
+  type DocKind,
+  type Effectiveness,
+  type Feature,
+  type MechanismOfAction,
+  type ReferenceKind,
+  type SupportDocument,
+} from "@/lib/types";
 import type { UserNeedCard } from "@/lib/user-needs";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,28 +22,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StepTheories } from "@/components/wizard/step-theories";
+import { HistoryDialog } from "@/components/workflow/history-dialog";
+import { ProvenanceStrip } from "@/components/workflow/provenance-strip";
 import type { Edit } from "@/components/wizard/wizard";
 import { STATE_META } from "./card-ribbon";
 import type { ReviewState } from "@/lib/types";
 
 /* ---------- shared bits ---------- */
 
-/** Read-only value carried in from an earlier card, with where it came from. */
-export function Inherited({ label, from, state, children }: { label: string; from: string; state?: ReviewState; children: React.ReactNode }) {
+/** Read-only value carried in from an earlier card. */
+export function Inherited({ label, state, children }: { label: string; state?: ReviewState; children: React.ReactNode }) {
   return (
     <div className="rounded-md border border-neutral-200 bg-neutral-100/80 p-3">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
         <Link2 className="size-3" />
         {label}
-        <span className="ml-auto font-normal normal-case tracking-normal text-neutral-500">
-          pre-populated from {from}
-          {state && (
-            <span className={cn("ml-1.5 rounded border px-1 py-px text-[10px]", STATE_META[state].chip)}>
-              {state === "finalized" ? "finalized language" : "author-approved language"}
-            </span>
-          )}
-        </span>
+        {state && (
+          <span className={cn("ml-auto rounded border px-1 py-px text-[10px] font-normal normal-case tracking-normal", STATE_META[state].chip)}>
+            {state === "finalized" ? "finalized language" : "author-approved language"}
+          </span>
+        )}
       </div>
       <div className="mt-1.5 text-sm text-neutral-800">{children}</div>
     </div>
@@ -43,21 +53,17 @@ export function DocumentsEditor({
   docs,
   onChange,
   defaultKind,
-  hint,
 }: {
   docs: SupportDocument[];
   onChange: (next: SupportDocument[]) => void;
   defaultKind: DocKind;
-  hint: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const update = (id: string, p: Partial<SupportDocument>) => onChange(docs.map((d) => (d.id === id ? { ...d, ...p } : d)));
   const add = (p: Partial<SupportDocument> = {}) => onChange([...docs, { id: makeId("doc"), kind: defaultKind, code: `ATT-${docs.length + 1}`, title: "", ...p }]);
   return (
     <div className="grid gap-2">
-      <Label>
-        Documents <span className="font-normal text-neutral-500">· {hint}</span>
-      </Label>
+      <Label>Documents</Label>
       <ol className="flex flex-col gap-2">
         {docs.map((d) => (
           <li key={d.id} className="flex items-center gap-2">
@@ -106,32 +112,155 @@ export function DocumentsEditor({
 
 /* ---------- 1 · Clinical Mechanism of Action ---------- */
 
+/**
+ * Laid out like the Figma card: UN to Improve (read-only, spans every row) |
+ * Clinical Theory | Clinical Theory References, one row per theory, with the
+ * record strip underneath.
+ */
 export function MoaEditor({
   moa,
   need,
   needLabel,
   edit,
-  featureCountByTheory,
   onRemoveTheory,
 }: {
   moa: MechanismOfAction;
   need?: UserNeedCard;
   needLabel: string;
   edit: Edit;
-  featureCountByTheory: Record<string, number>;
   onRemoveTheory: (id: string) => void;
 }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const updateTheory = (id: string, patch: Partial<ClinicalTheory>, summary: string) =>
+    edit((m) => ({ ...m, theories: m.theories.map((t) => (t.id === id ? { ...t, ...patch } : t)) }), summary);
+  const addTheory = () => {
+    const t = blankTheory(moa.theories.length + 1);
+    edit((m) => ({ ...m, theories: [...m.theories, t] }), `Clinical theory '${t.title}' added`);
+  };
+  const rows = Math.max(moa.theories.length, 1);
+
   return (
-    <div className="flex flex-col gap-6">
-      <Inherited label={`Unmet need · ${needLabel}`} from="User Needs (previous level)">
-        <div className="font-semibold">{need?.title || moa.unmetNeed}</div>
-        {need?.note && <div className="mt-1 text-xs text-neutral-600">{need.note}</div>}
-        <div className="mt-1.5 inline-flex items-center gap-1 rounded border border-[#08A9AD]/40 bg-[#08A9AD]/10 px-1.5 py-px text-[10px] font-medium text-[#0a7f82]">
-          <Check className="size-3" /> Designated Improve
+    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="grid grid-cols-[minmax(200px,0.8fr)_1.2fr_1.2fr] text-sm">
+        <div className="border-b border-neutral-200 bg-neutral-200/70 px-3 py-2 text-[13px] font-semibold text-neutral-800">UN to Improve</div>
+        <div className="border-b border-l border-neutral-200 px-3 py-2 text-[13px] font-semibold text-neutral-800">Clinical Theory</div>
+        <div className="border-b border-l border-neutral-200 px-3 py-2 text-[13px] font-semibold text-neutral-800">Clinical Theory References</div>
+
+        <div className="bg-neutral-200/70 px-3 py-3" style={{ gridRow: `span ${rows + 1}` }}>
+          <div className="font-mono text-[10px] font-semibold text-[#00224B]">{needLabel}</div>
+          <div className="mt-1 font-semibold text-neutral-800">{need?.title || moa.unmetNeed}</div>
         </div>
-      </Inherited>
-      <StepTheories moa={moa} edit={edit} featureCountByTheory={featureCountByTheory} onRemoveTheory={onRemoveTheory} />
+
+        {moa.theories.map((t, i) => (
+          <TheoryRow
+            key={t.id}
+            theory={t}
+            index={i}
+            canRemove={moa.theories.length > 1}
+            onChange={(patch, summary) => updateTheory(t.id, patch, summary)}
+            onRemove={() => onRemoveTheory(t.id)}
+          />
+        ))}
+        {moa.theories.length === 0 && <div className="col-span-2 border-l border-neutral-200 p-3" />}
+
+        <div className="col-span-2 border-l border-t border-neutral-200 px-3 py-2">
+          <Button variant="outline" size="sm" onClick={addTheory}>
+            <Plus className="size-3.5" /> Add clinical theory
+          </Button>
+        </div>
+      </div>
+
+      <ProvenanceStrip value={moa.provenance} historyCount={moa.history.length} onHistory={() => setHistoryOpen(true)} className="text-[11px]" />
+      <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} title={`Clinical Mechanism of Action · ${needLabel}`} history={moa.history} />
     </div>
+  );
+}
+
+function TheoryRow({
+  theory,
+  index,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  theory: ClinicalTheory;
+  index: number;
+  canRemove: boolean;
+  onChange: (patch: Partial<ClinicalTheory>, summary: string) => void;
+  onRemove: () => void;
+}) {
+  const refs = theory.references;
+  const setRefs = (next: ClinicalTheory["references"], summary: string) => onChange({ references: next }, summary);
+  return (
+    <>
+      <div className={cn("flex flex-col gap-2 border-l border-neutral-200 px-3 py-3", index > 0 && "border-t")} data-anchor={`theory-${theory.id}`}>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-neutral-500">T{index + 1}</span>
+          <Input
+            aria-label={`Theory ${index + 1} title`}
+            value={theory.title}
+            onChange={(e) => onChange({ title: e.target.value }, "Theory title edited")}
+            className="h-8 font-semibold"
+          />
+          {canRemove && (
+            <Button variant="ghost" size="icon-sm" aria-label={`Remove theory ${index + 1}`} className="text-neutral-400 hover:text-red-600" onClick={onRemove}>
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
+        <Textarea
+          aria-label={`Theory ${index + 1} statement`}
+          rows={4}
+          value={theory.statement}
+          onChange={(e) => onChange({ statement: e.target.value }, `Clinical theory '${theory.title}' revised`)}
+          className="text-sm"
+        />
+      </div>
+      <div className={cn("flex flex-col gap-2 border-l border-neutral-200 px-3 py-3", index > 0 && "border-t")}>
+        {refs.map((r) => (
+          <div key={r.id} className="flex items-center gap-1.5">
+            <Select
+              value={r.kind}
+              onValueChange={(v) => setRefs(refs.map((x) => (x.id === r.id ? { ...x, kind: v as ReferenceKind } : x)), `Reference type changed on '${theory.title}'`)}
+            >
+              <SelectTrigger size="sm" className="w-[104px] shrink-0 text-xs">
+                <SelectValue>{(v: ReferenceKind | null) => (v ? REFERENCE_KINDS[v].label : "Type")}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(REFERENCE_KINDS) as ReferenceKind[]).map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {REFERENCE_KINDS[k].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              aria-label="Citation"
+              value={r.citation}
+              onChange={(e) => setRefs(refs.map((x) => (x.id === r.id ? { ...x, citation: e.target.value } : x)), `Reference edited on '${theory.title}'`)}
+              className="h-8 min-w-0 flex-1 text-xs"
+            />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Remove reference"
+              className="text-neutral-400 hover:text-red-600"
+              onClick={() => setRefs(refs.filter((x) => x.id !== r.id), `Reference removed from '${theory.title}'`)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => setRefs([...refs, { id: makeId("ref"), kind: "journal", citation: "" }], `Reference added to '${theory.title}'`)}
+        >
+          <Plus className="size-3.5" /> Add reference
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -152,7 +281,7 @@ export function FeatureEditor({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <Inherited label={`Clinical theory · ${theoryLabel}`} from="Clinical Mechanism of Action" state={moaState}>
+      <Inherited label={`Clinical theory · ${theoryLabel}`} state={moaState}>
         {theory ? (
           <>
             <div className="font-semibold">{theory.title}</div>
@@ -194,7 +323,6 @@ export function FeatureEditor({
         docs={feature.supportDocuments}
         onChange={(next) => onChange((f) => ({ ...f, supportDocuments: next }), "Documents edited")}
         defaultKind="drawing"
-        hint="drawings, sketches or CAD PDFs that explain the concept"
       />
     </div>
   );
@@ -218,7 +346,7 @@ export function EffectivenessEditor({
   const acc = eff.prototypeAcceptable;
   return (
     <div className="flex flex-col gap-6">
-      <Inherited label="Potential feature concept" from="Feature Identification" state={featureState}>
+      <Inherited label="Potential feature concept" state={featureState}>
         <div className="font-semibold">{feature.featureConcept || <span className="font-normal text-neutral-400">No concept yet</span>}</div>
         {feature.designTheory && <div className="mt-1 text-xs text-neutral-600">Design theory: {feature.designTheory}</div>}
       </Inherited>
@@ -234,7 +362,7 @@ export function EffectivenessEditor({
         />
       </div>
 
-      <DocumentsEditor docs={eff.documents} onChange={(next) => patch({ documents: next }, "Evaluation documents edited")} defaultKind="report" hint="evaluation or test records for the prototype" />
+      <DocumentsEditor docs={eff.documents} onChange={(next) => patch({ documents: next }, "Evaluation documents edited")} defaultKind="report" />
 
       <div className="grid gap-2">
         <Label>Successful prototype created and acceptable?</Label>
@@ -262,7 +390,6 @@ export function EffectivenessEditor({
             </Button>
           )}
         </div>
-        <p className="text-[11px] text-neutral-500">Only concepts designated acceptable flow into the Market Design Map.</p>
       </div>
     </div>
   );
@@ -294,16 +421,8 @@ export function MarketMapEditor({
   const shown = final ? rows.filter((r) => r.selected) : rows;
   return (
     <div className="flex flex-col gap-4">
-      {final ? (
-        <div className="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
-          <span className="font-semibold">Final Market Design Map.</span> Only the selected features are shown, traced to their user need. This is the closed output of the Feature Development level.
-        </div>
-      ) : (
-        <p className="text-sm text-neutral-600">
-          {rows.length === 0
-            ? "No viable concepts yet. Designate at least one prototype acceptable on a Feature Concept Effectiveness card."
-            : `${rows.length} viable concept${rows.length === 1 ? "" : "s"} (prototype designated acceptable). For each, decide whether it goes forward in the design and justify the decision.`}
-        </p>
+      {final && (
+        <div className="self-start rounded border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-900">Final Market Design Map</div>
       )}
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -364,7 +483,7 @@ export function MarketMapEditor({
             {shown.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-sm text-neutral-400">
-                  {final ? "No features were selected." : "Nothing viable yet."}
+                  {final ? "No features selected" : "No viable concepts"}
                 </td>
               </tr>
             )}

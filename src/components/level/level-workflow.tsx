@@ -134,11 +134,6 @@ export function LevelWorkflow({
     setState((s) => A.editFeature(s, id, updater));
     logEdit(id, summary);
   };
-  const featureCountByTheory = useMemo(() => {
-    const out: Record<string, number> = {};
-    for (const f of state.features) out[f.theoryId] = (out[f.theoryId] ?? 0) + 1;
-    return out;
-  }, [state.features]);
 
   /* ---------- training + signatures ---------- */
 
@@ -192,7 +187,7 @@ export function LevelWorkflow({
         const m = active.moa;
         if (m.theories.length === 0) return { ok: false, reason: "Add at least one clinical theory." };
         const bad = m.theories.find((t) => !t.title.trim() || (!t.statement.trim() && !t.file));
-        if (bad) return { ok: false, reason: "Every theory needs a title and a statement or source file." };
+        if (bad) return { ok: false, reason: "Every theory needs a title and a statement." };
         const unref = m.theories.find((t) => t.references.length === 0);
         if (unref) return { ok: false, reason: `'${unref.title}' has no references; an unreferenced theory cannot pass review.` };
         return { ok: true };
@@ -301,7 +296,7 @@ export function LevelWorkflow({
 
       {state.mechanisms.length === 0 && (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-          No Clinical Mechanism of Action cards yet. Each <span className="font-semibold">Improve</span> need in User Needs becomes one here.{" "}
+          No cards yet.{" "}
           <button type="button" onClick={onGoToNeeds} className="font-semibold text-[#00224B] underline underline-offset-2">
             Go to User Needs
           </button>
@@ -342,7 +337,6 @@ export function LevelWorkflow({
                     need={active.need}
                     needLabel={active.label}
                     edit={editMoa(active.moa.id)}
-                    featureCountByTheory={featureCountByTheory}
                     onRemoveTheory={(tid) => setState((s) => A.removeTheory(s, active.moa.id, tid))}
                   />
                 )}

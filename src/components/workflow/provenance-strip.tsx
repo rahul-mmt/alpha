@@ -9,11 +9,15 @@ export function ProvenanceStrip({
   historyCount,
   onHistory,
   onConflict,
+  className,
 }: {
   value: Provenance;
   historyCount: number;
   onHistory: () => void;
-  onConflict: () => void;
+  /** Omit to show the conflict flag read-only. */
+  onConflict?: () => void;
+  /** Overrides the default 9px text size. */
+  className?: string;
 }) {
   const cells: { label: string; node: React.ReactNode }[] = [
     { label: "Procedure ID", node: value.procedureId },
@@ -37,7 +41,12 @@ export function ProvenanceStrip({
     { label: "Revision Date", node: value.revisionDate },
     {
       label: "Active Conflict",
-      node: (
+      node: !onConflict ? (
+        <span className={cn("inline-flex items-center gap-0.5", value.activeConflict ? "font-semibold text-red-600" : "text-neutral-800")} title={value.conflictReason}>
+          {value.activeConflict && <AlertTriangle className="size-2.5" />}
+          {value.activeConflict ? "Yes" : "None"}
+        </span>
+      ) : (
         <button
           type="button"
           onClick={onConflict}
@@ -55,7 +64,7 @@ export function ProvenanceStrip({
   ];
 
   return (
-    <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1.35fr_1fr] border-t border-neutral-200 bg-neutral-50 text-[9px] leading-tight">
+    <div className={cn("grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1.35fr_1fr] border-t border-neutral-200 bg-neutral-50 leading-tight", className ?? "text-[9px]")}>
       {cells.map((c) => (
         <div key={c.label} className="border-r border-neutral-200 px-1.5 py-1 last:border-r-0">
           <div className="text-neutral-500">{c.label}</div>

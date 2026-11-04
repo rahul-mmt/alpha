@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Lock } from "lucide-react";
-import { CARD_INSTRUCTIONS, CARD_TYPES } from "@/lib/level";
+import { ChevronDown, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { CARD_INSTRUCTIONS, CARD_TYPES, type CardType } from "@/lib/level";
 import type { CardReview, ReviewState } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { LevelCard } from "./level-cards";
 
 export const STATE_META: Record<ReviewState, { label: string; dot: string; chip: string }> = {
@@ -15,8 +17,9 @@ export const STATE_META: Record<ReviewState, { label: string; dot: string; chip:
 };
 
 /**
- * The ribbon above the card window: every card in the level, in sequence,
- * grouped by card type. Click to activate a card in the window.
+ * The ribbon above the card window: one tab per card type, so it stays the
+ * same width however many cards the level holds. Inside the active type a
+ * pager (prev / list / next) steps through the individual cards.
  */
 export function CardRibbon({
   cards,
@@ -29,59 +32,88 @@ export function CardRibbon({
   reviews: Record<string, CardReview | undefined>;
   onSelect: (id: string) => void;
 }) {
-  const scroller = useRef<HTMLDivElement>(null);
+  const active = cards.find((c) => c.id === activeId);
+  // Last card visited per type, so switching back to a type returns to where you were.
+  const lastByType = useRef<Partial<Record<CardType, string>>>({});
   useEffect(() => {
-    scroller.current?.querySelector<HTMLElement>(`[data-ribbon-id="${CSS.escape(activeId)}"]`)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
-  }, [activeId]);
+    if (active) lastByType.current[active.kind] = active.id;
+  }, [active]);
+
+  const stateOf = (c: LevelCard) => reviews[c.id]?.state ?? "drafting";
+  const group = active ? cards.filter((c) => c.kind === active.kind) : [];
+  const pos = active ? group.indexOf(active) : -1;
 
   return (
-    <div ref={scroller} className="flex items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]" role="tablist" aria-label="Cards in this level">
-      {CARD_TYPES.map((t, ti) => {
-        const group = cards.filter((c) => c.kind === t);
-        if (group.length === 0) return null;
-        return (
-          <div key={t} className="flex shrink-0 flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              <span className="grid size-4 place-items-center rounded-full bg-[#00224B] font-mono text-[9px] text-white">{ti + 1}</span>
-              {CARD_INSTRUCTIONS[t].title}
-              <span className="font-mono font-normal text-neutral-400">×{group.length}</span>
-            </div>
-            <div className="flex items-stretch gap-1.5">
-              {group.map((c) => {
-                const r = reviews[c.id];
-                const st = r?.state ?? "drafting";
-                const active = c.id === activeId;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    data-ribbon-id={c.id}
-                    onClick={() => onSelect(c.id)}
-                    className={cn(
-                      "flex min-w-[150px] max-w-[200px] flex-col gap-1 rounded-md border px-2.5 py-2 text-left transition",
-                      active ? "border-[#08A9AD] bg-white shadow-sm ring-1 ring-[#08A9AD]/30" : "border-neutral-200 bg-white/70 hover:border-neutral-300 hover:bg-white"
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span className="font-mono text-[10px] font-semibold text-[#00224B]">{c.label}</span>
-                      {st === "finalized" && <Lock className="size-3 text-green-700" />}
-                      <span className={cn("ml-auto size-2 rounded-full", STATE_META[st].dot)} title={STATE_META[st].label} />
-                    </span>
-                    <span className="truncate text-[12px] font-medium text-neutral-800">{ribbonTitle(c)}</span>
-                    <span className="text-[10px] text-neutral-500">
-                      {STATE_META[st].label}
-                      {r && r.round > 0 && st !== "finalized" && ` · round ${r.round}`}
-                      {st === "finalized" && r?.finalRevision && ` · ${r.finalRevision}`}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4" role="tablist" aria-label="Card types in this level">
+        {CARD_TYPES.map((t, ti) => {
+          const of = cards.filter((c) => c.kind === t);
+          const finalized = of.filter((c) => stateOf(c) === "finalized").length;
+          const selected = active?.kind === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              disabled={of.length === 0}
+              onClick={() => {
+                const target = of.find((c) => c.id === lastByType.current[t]) ?? of[0];
+                if (target) onSelect(target.id);
+              }}
+              className={cn(
+                "flex min-w-0 flex-col gap-1 rounded-md border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50",
+                selected ? "border-[#08A9AD] bg-white shadow-sm ring-1 ring-[#08A9AD]/30" : "border-neutral-200 bg-white/70 hover:border-neutral-300 hover:bg-white"
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                <span className={cn("grid size-4 shrink-0 place-items-center rounded-full font-mono text-[9px] text-white", selected ? "bg-[#08A9AD]" : "bg-[#00224B]")}>{ti + 1}</span>
+                <span className="truncate text-[12px] font-semibold text-[#00224B]">{CARD_INSTRUCTIONS[t].title}</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+                {of.length} card{of.length === 1 ? "" : "s"} · {finalized} finalized
+                <span className="ml-auto flex gap-0.5">
+                  {of.slice(0, 12).map((c) => (
+                    <span key={c.id} className={cn("size-1.5 rounded-full", STATE_META[stateOf(c)].dot)} />
+                  ))}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {active && group.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon-sm" aria-label="Previous card" disabled={pos <= 0} onClick={() => onSelect(group[pos - 1].id)}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="min-w-0 max-w-[520px] justify-start" />}>
+              <span className="font-mono text-[11px] font-semibold text-[#00224B]">{active.label}</span>
+              <span className="truncate text-neutral-700">{ribbonTitle(active)}</span>
+              <span className={cn("size-2 shrink-0 rounded-full", STATE_META[stateOf(active)].dot)} />
+              <ChevronDown className="size-3.5 shrink-0 text-neutral-400" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-80 w-96 overflow-y-auto">
+              {group.map((c) => (
+                <DropdownMenuItem key={c.id} onClick={() => onSelect(c.id)} className={cn("gap-2 text-xs", c.id === active.id && "bg-neutral-100")}>
+                  <span className="font-mono text-[10px] font-semibold text-[#00224B]">{c.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{ribbonTitle(c)}</span>
+                  {stateOf(c) === "finalized" && <Lock className="size-3 text-green-700" />}
+                  <span className="text-[10px] text-neutral-500">{STATE_META[stateOf(c)].label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" size="icon-sm" aria-label="Next card" disabled={pos >= group.length - 1} onClick={() => onSelect(group[pos + 1].id)}>
+            <ChevronRight className="size-4" />
+          </Button>
+          <span className="font-mono text-[11px] text-neutral-500">
+            {pos + 1} of {group.length}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

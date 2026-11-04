@@ -99,9 +99,10 @@ export const CARD_INSTRUCTIONS: Record<CardType, CardInstructions> = {
     definition:
       "The clinical pathway(s) by which a device could change the outcome named in the User Need. Each pathway is captured as a Clinical Theory: a falsifiable statement of why an intervention at that point would improve the need, supported by cited research.",
     fields: [
-      { name: "Unmet Need", definition: "Carried from the User Needs level. Read-only here; it is the need this card must address." },
-      { name: "Clinical Theory", definition: "Title and statement of one mechanism. Add a second theory if a second distinct mechanism could address the need." },
-      { name: "References", definition: "Journal, guideline, standard or internal sources used to derive the theory. Attach the source document where available." },
+      { name: "UN to Improve", definition: "Carried from the User Needs level; only needs designated Improve, not Maintain. Read-only here; it is the need this card must address." },
+      { name: "Clinical Theory", definition: "One row per mechanism by which acting on the need produces a clinical effect: a short title (e.g. Biofilm suppression) and a statement of the causal chain (what the device changes, and why that changes the outcome). Add a second row if a second distinct mechanism could address the need. Features on the next card are derived from a specific theory." },
+      { name: "Clinical Theory References", definition: "Journal, guideline, standard or internal sources used to derive the theory on the same row. Every theory needs at least one." },
+      { name: "Record strip", definition: "Procedure ID and revision, section ID and revision, card history, card revision, revision date and active conflict. System-maintained." },
     ],
     completion: ["At least one theory with a statement or attached source.", "Every theory has at least one reference.", "Improvement confirmed (not maintenance)."],
   },
